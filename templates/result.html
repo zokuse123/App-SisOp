@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hasil Simulasi - Algoritma Banker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container my-5">
+        <!-- Header -->
+        <div class="header-section text-center mb-5">
+            <h1 class="display-4 fw-bold text-primary">📊 Hasil Simulasi</h1>
+            <h5 class="text-secondary">Algoritma Banker - Safety Algorithm</h5>
+        </div>
+
+        <!-- Status Sistem -->
+        <div class="card shadow-lg mb-4 {% if is_safe %}border-success{% else %}border-danger{% endif %}">
+            <div class="card-header {% if is_safe %}bg-success{% else %}bg-danger{% endif %} text-white text-center">
+                <h3 class="mb-0">
+                    {% if is_safe %}
+                        ✅ SISTEM DALAM KONDISI AMAN (SAFE STATE)
+                    {% else %}
+                        ❌ SISTEM DALAM KONDISI TIDAK AMAN (UNSAFE STATE)
+                    {% endif %}
+                </h3>
+            </div>
+            <div class="card-body">
+                {% if is_safe %}
+                    <div class="alert alert-success" role="alert">
+                        <h5 class="alert-heading">🎯 Safe Sequence Ditemukan!</h5>
+                        <hr>
+                        <p class="mb-0 fs-4 text-center fw-bold">
+                            P{{ ' → P'.join(safe_sequence|map('string')) }}
+                        </p>
+                    </div>
+                    <p class="text-muted text-center">
+                        Sistem dapat menyelesaikan semua proses tanpa deadlock dengan urutan di atas.
+                    </p>
+                {% else %}
+                    <div class="alert alert-danger" role="alert">
+                        <h5 class="alert-heading">⚠️ Tidak Ada Safe Sequence!</h5>
+                        <hr>
+                        <p class="mb-0">
+                            Sistem tidak dapat menemukan urutan eksekusi yang aman. 
+                            Deadlock mungkin terjadi dengan konfigurasi saat ini.
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Tabel Matriks Sistem -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">📋 Matriks Sistem</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th rowspan="2" class="align-middle text-center">Proses</th>
+                                <th colspan="{{ n_resources }}" class="text-center bg-success">Allocation</th>
+                                <th colspan="{{ n_resources }}" class="text-center bg-warning">Max</th>
+                                <th colspan="{{ n_resources }}" class="text-center bg-info">Need</th>
+                            </tr>
+                            <tr>
+                                {% for j in range(n_resources) %}
+                                    <th class="text-center bg-success bg-opacity-25">R{{ j }}</th>
+                                {% endfor %}
+                                {% for j in range(n_resources) %}
+                                    <th class="text-center bg-warning bg-opacity-25">R{{ j }}</th>
+                                {% endfor %}
+                                {% for j in range(n_resources) %}
+                                    <th class="text-center bg-info bg-opacity-25">R{{ j }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for i in range(n_processes) %}
+                            <tr>
+                                <td class="fw-bold text-center">P{{ i }}</td>
+                                {% for j in range(n_resources) %}
+                                    <td class="text-center">{{ allocation[i][j] }}</td>
+                                {% endfor %}
+                                {% for j in range(n_resources) %}
+                                    <td class="text-center">{{ max_matrix[i][j] }}</td>
+                                {% endfor %}
+                                {% for j in range(n_resources) %}
+                                    <td class="text-center">{{ need[i][j] }}</td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                            <tr class="table-primary fw-bold">
+                                <td class="text-center">Available</td>
+                                <td colspan="{{ n_resources }}" class="text-center">-</td>
+                                <td colspan="{{ n_resources }}" class="text-center">-</td>
+                                {% for j in range(n_resources) %}
+                                    <td class="text-center">{{ available[j] }}</td>
+                                {% endfor %}
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detail Langkah-langkah Eksekusi -->
+        {% if steps %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">🔍 Detail Langkah-langkah Eksekusi</h5>
+            </div>
+            <div class="card-body">
+                <div class="accordion" id="stepsAccordion">
+                    {% for step in steps %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading{{ step.step }}">
+                            <button class="accordion-button {% if step.step != 0 %}collapsed{% endif %}" 
+                                    type="button" data-bs-toggle="collapse" 
+                                    data-bs-target="#collapse{{ step.step }}" 
+                                    aria-expanded="{% if step.step == 0 %}true{% else %}false{% endif %}" 
+                                    aria-controls="collapse{{ step.step }}">
+                                <strong>Step {{ step.step }}:</strong>&nbsp;{{ step.message }}
+                            </button>
+                        </h2>
+                        <div id="collapse{{ step.step }}" 
+                             class="accordion-collapse collapse {% if step.step == 0 %}show{% endif %}" 
+                             aria-labelledby="heading{{ step.step }}" 
+                             data-bs-parent="#stepsAccordion">
+                            <div class="accordion-body">
+                                {% if 'process' in step %}
+                                <ul class="list-unstyled">
+                                    <li><strong>Proses:</strong> P{{ step.process }}</li>
+                                    <li><strong>Need[{{ step.process }}]:</strong> {{ step.need }}</li>
+                                    <li><strong>Work (sebelum):</strong> {{ step.work_before }}</li>
+                                    <li><strong>Allocation[{{ step.process }}]:</strong> {{ step.allocation }}</li>
+                                    <li><strong>Work (sesudah):</strong> {{ step.work_after }}</li>
+                                </ul>
+                                <div class="alert alert-info mb-0">
+                                    <small>
+                                        <strong>Penjelasan:</strong> Proses P{{ step.process }} dapat dieksekusi karena 
+                                        semua kebutuhannya (Need) dapat dipenuhi oleh resource yang tersedia (Work). 
+                                        Setelah eksekusi, resource yang dialokasikan dikembalikan ke sistem.
+                                    </small>
+                                </div>
+                                {% else %}
+                                <p class="mb-0">{{ step.message }}</p>
+                                <p class="text-muted mb-0"><strong>Work:</strong> {{ step.work }}</p>
+                                <p class="text-muted mb-0"><strong>Finish:</strong> {{ step.finish }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Penjelasan Algoritma -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">📚 Penjelasan Algoritma Banker</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="fw-bold">Cara Kerja Safety Algorithm:</h6>
+                <ol>
+                    <li><strong>Inisialisasi:</strong> Work = Available, Finish[i] = false untuk semua proses</li>
+                    <li><strong>Cari proses:</strong> Cari proses P<sub>i</sub> dimana:
+                        <ul>
+                            <li>Finish[i] = false</li>
+                            <li>Need[i] ≤ Work</li>
+                        </ul>
+                    </li>
+                    <li><strong>Eksekusi proses:</strong> Jika ditemukan:
+                        <ul>
+                            <li>Work = Work + Allocation[i]</li>
+                            <li>Finish[i] = true</li>
+                            <li>Tambahkan P<sub>i</sub> ke safe sequence</li>
+                        </ul>
+                    </li>
+                    <li><strong>Ulangi langkah 2-3</strong> sampai semua proses selesai atau tidak ada proses yang memenuhi kondisi</li>
+                    <li><strong>Kesimpulan:</strong> Jika semua Finish[i] = true, maka sistem aman (safe state)</li>
+                </ol>
+                
+                <hr>
+                
+                <h6 class="fw-bold">Rumus Matriks:</h6>
+                <ul class="list-unstyled">
+                    <li><strong>Need[i,j]</strong> = Max[i,j] - Allocation[i,j]</li>
+                    <li><strong>Available[j]</strong> = Total Resource[j] - Σ Allocation[i,j]</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Tombol Navigasi -->
+        <div class="text-center mt-4">
+            <a href="/" class="btn btn-primary btn-lg px-5">
+                🔄 Simulasi Baru
+            </a>
+        </div>
+
+        <!-- Footer -->
+        <footer class="text-center mt-5 pt-4 border-top">
+            <p class="text-muted"> Sistem Operasi 2025</p>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

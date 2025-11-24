@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulasi Algoritma Banker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container my-5">
+        <!-- Header -->
+        <div class="header-section text-center mb-5">
+            <h1 class="display-4 fw-bold text-primary">Simulasi Algoritma Banker</h1>
+            <h5 class="text-secondary">untuk Penghindaran Deadlock pada Manajemen Sumber Daya Sistem Operasi</h5>
+            <p class="text-muted mt-3">Masukkan data sistem untuk menjalankan simulasi</p>
+        </div>
+
+        <form action="/simulate" method="POST" id="bankerForm">
+            <!-- Input Jumlah Proses dan Resource -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">📊 Konfigurasi Sistem</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="n_processes" class="form-label fw-bold">Jumlah Proses (n):</label>
+                            <input type="number" class="form-control" id="n_processes" name="n_processes" 
+                                   value="5" min="1" max="10" required>
+                            <small class="text-muted">Contoh: 5 proses (P0, P1, P2, P3, P4)</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="n_resources" class="form-label fw-bold">Jumlah Resource (m):</label>
+                            <input type="number" class="form-control" id="n_resources" name="n_resources" 
+                                   value="3" min="1" max="10" required>
+                            <small class="text-muted">Contoh: 3 tipe resource (A, B, C)</small>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-success" onclick="generateTables()">
+                        🔄 Generate Tabel Input
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dynamic Tables Container -->
+            <div id="tablesContainer"></div>
+
+            <!-- Submit Button -->
+            <div class="text-center mt-4">
+                <button type="submit" class="btn btn-primary btn-lg px-5">
+                    🚀 Jalankan Simulasi
+                </button>
+            </div>
+        </form>
+
+        <!-- Footer -->
+        <footer class="text-center mt-5 pt-4 border-top">
+            <p class="text-muted"> Sistem Operasi 2025</p>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Data contoh default
+        const defaultData = {
+            allocation: [
+                [0, 1, 0],
+                [2, 0, 0],
+                [3, 0, 2],
+                [2, 1, 1],
+                [0, 0, 2]
+            ],
+            max: [
+                [7, 5, 3],
+                [3, 2, 2],
+                [9, 0, 2],
+                [2, 2, 2],
+                [4, 3, 3]
+            ],
+            available: [3, 3, 2]
+        };
+
+        function generateTables() {
+            const n = parseInt(document.getElementById('n_processes').value);
+            const m = parseInt(document.getElementById('n_resources').value);
+            
+            if (n < 1 || m < 1 || n > 10 || m > 10) {
+                alert('Jumlah proses dan resource harus antara 1-10!');
+                return;
+            }
+
+            let html = '';
+
+            // Tabel Allocation
+            html += `
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">📋 Matriks Allocation (Alokasi Saat Ini)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Proses</th>
+                                    ${Array.from({length: m}, (_, j) => `<th>R${j}</th>`).join('')}
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+
+            for (let i = 0; i < n; i++) {
+                html += `<tr><td class="fw-bold">P${i}</td>`;
+                for (let j = 0; j < m; j++) {
+                    const val = (i < defaultData.allocation.length && j < defaultData.allocation[i].length) 
+                                ? defaultData.allocation[i][j] : 0;
+                    html += `<td><input type="number" class="form-control form-control-sm" 
+                             name="allocation_${i}_${j}" value="${val}" min="0" required></td>`;
+                }
+                html += `</tr>`;
+            }
+
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            `;
+
+            // Tabel Max
+            html += `
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">📈 Matriks Max (Kebutuhan Maksimum)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Proses</th>
+                                    ${Array.from({length: m}, (_, j) => `<th>R${j}</th>`).join('')}
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+
+            for (let i = 0; i < n; i++) {
+                html += `<tr><td class="fw-bold">P${i}</td>`;
+                for (let j = 0; j < m; j++) {
+                    const val = (i < defaultData.max.length && j < defaultData.max[i].length) 
+                                ? defaultData.max[i][j] : 0;
+                    html += `<td><input type="number" class="form-control form-control-sm" 
+                             name="max_${i}_${j}" value="${val}" min="0" required></td>`;
+                }
+                html += `</tr>`;
+            }
+
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            `;
+
+            // Vektor Available
+            html += `
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">💾 Vektor Available (Resource Tersedia)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+            `;
+
+            for (let j = 0; j < m; j++) {
+                const val = (j < defaultData.available.length) ? defaultData.available[j] : 0;
+                html += `
+                    <div class="col-md-${12/m} mb-3">
+                        <label class="form-label fw-bold">Resource ${j} (R${j}):</label>
+                        <input type="number" class="form-control" name="available_${j}" 
+                               value="${val}" min="0" required>
+                    </div>
+                `;
+            }
+
+            html += `
+                    </div>
+                </div>
+            </div>
+            `;
+
+            document.getElementById('tablesContainer').innerHTML = html;
+        }
+
+        // Generate tabel saat halaman dimuat
+        window.onload = function() {
+            generateTables();
+        };
+    </script>
+</body>
+</html>
